@@ -1,3 +1,5 @@
+pub use encoding_rs as encoding;
+
 pub mod auto_pairs;
 pub mod chars;
 pub mod comment;
@@ -5,18 +7,19 @@ pub mod diagnostic;
 pub mod diff;
 pub mod graphemes;
 pub mod history;
+pub mod increment;
 pub mod indent;
 pub mod line_ending;
 pub mod macros;
 pub mod match_brackets;
 pub mod movement;
-pub mod numbers;
 pub mod object;
 pub mod path;
 mod position;
 pub mod register;
 pub mod search;
 pub mod selection;
+pub mod shellwords;
 mod state;
 pub mod surround;
 pub mod syntax;

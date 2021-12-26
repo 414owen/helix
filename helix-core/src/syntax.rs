@@ -1,5 +1,6 @@
 use crate::{
     chars::char_is_line_ending,
+    diagnostic::Severity,
     regex::Regex,
     transaction::{ChangeSet, Operation},
     Rope, RopeSlice, Tendril,
@@ -50,7 +51,7 @@ pub struct Configuration {
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct LanguageConfiguration {
     #[serde(rename = "name")]
-    pub language_id: String,
+    pub language_id: String, // c-sharp, rust
     pub scope: String,           // source.rust
     pub file_types: Vec<String>, // filename ends_with? <Gemfile, rb, etc>
     #[serde(default)]
@@ -63,6 +64,8 @@ pub struct LanguageConfiguration {
 
     #[serde(default)]
     pub auto_format: bool,
+    #[serde(default)]
+    pub diagnostic_severity: Severity,
 
     // content_regex
     #[serde(default, skip_serializing, deserialize_with = "deserialize_regex")]

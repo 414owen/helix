@@ -7,7 +7,7 @@ use crate::{
 };
 
 use helix_core::{
-    coords_at_pos,
+    coords_at_pos, encoding,
     graphemes::{ensure_grapheme_boundary_next, next_grapheme_boundary, prev_grapheme_boundary},
     movement::Direction,
     syntax::{self, HighlightEvent},
@@ -425,6 +425,8 @@ impl EditorView {
 
         let mut offset = 0;
 
+        let gutter_style = theme.get("ui.gutter");
+
         // avoid lots of small allocations by reusing a text buffer for each line
         let mut text = String::with_capacity(8);
 
@@ -440,7 +442,7 @@ impl EditorView {
                         viewport.y + i as u16,
                         &text,
                         *width,
-                        style,
+                        gutter_style.patch(style),
                     );
                 }
                 text.clear();
@@ -546,21 +548,6 @@ impl EditorView {
         }
         surface.set_string(viewport.x + 5, viewport.y, progress, base_style);
 
-        let rel_path = doc.relative_path();
-        let path = rel_path
-            .as_ref()
-            .map(|p| p.to_string_lossy())
-            .unwrap_or_else(|| SCRATCH_BUFFER_NAME.into());
-
-        let title = format!("{}{}", path, if doc.is_modified() { "[+]" } else { "" });
-        surface.set_stringn(
-            viewport.x + 8,
-            viewport.y,
-            title,
-            viewport.width.saturating_sub(6) as usize,
-            base_style,
-        );
-
         //-------------------------------
         // Right side of the status line.
         //-------------------------------
@@ -634,6 +621,13 @@ impl EditorView {
             base_style,
         ));
 
+        let enc = doc.encoding();
+        if enc != encoding::UTF_8 {
+            right_side_text
+                .0
+                .push(Span::styled(format!(" {} ", enc.name()), base_style));
+        }
+
         // Render to the statusline.
         surface.set_spans(
             viewport.x
@@ -643,6 +637,31 @@ impl EditorView {
             viewport.y,
             &right_side_text,
             right_side_text.width() as u16,
+        );
+
+        //-------------------------------
+        // Middle / File path / Title
+        //-------------------------------
+        let title = {
+            let rel_path = doc.relative_path();
+            let path = rel_path
+                .as_ref()
+                .map(|p| p.to_string_lossy())
+                .unwrap_or_else(|| SCRATCH_BUFFER_NAME.into());
+            format!("{}{}", path, if doc.is_modified() { "[+]" } else { "" })
+        };
+
+        surface.set_string_truncated(
+            viewport.x + 8, // 8: 1 space + 3 char mode string + 1 space + 1 spinner + 1 space
+            viewport.y,
+            title,
+            viewport
+                .width
+                .saturating_sub(6)
+                .saturating_sub(right_side_text.width() as u16 + 1) as usize, // "+ 1": a space between the title and the selection info
+            base_style,
+            true,
+            true,
         );
     }
 
@@ -1100,13 +1119,31 @@ impl Component for EditorView {
                     disp.push_str(&s);
                 }
             }
+            let style = cx.editor.theme.get("ui.text");
+            let macro_width = if cx.editor.macro_recording.is_some() {
+                3
+            } else {
+                0
+            };
             surface.set_string(
-                area.x + area.width.saturating_sub(key_width),
+                area.x + area.width.saturating_sub(key_width + macro_width),
                 area.y + area.height.saturating_sub(1),
                 disp.get(disp.len().saturating_sub(key_width as usize)..)
                     .unwrap_or(&disp),
-                cx.editor.theme.get("ui.text"),
+                style,
             );
+            if let Some((reg, _)) = cx.editor.macro_recording {
+                let disp = format!("[{}]", reg);
+                let style = style
+                    .fg(helix_view::graphics::Color::Yellow)
+                    .add_modifier(Modifier::BOLD);
+                surface.set_string(
+                    area.x + area.width.saturating_sub(3),
+                    area.y + area.height.saturating_sub(1),
+                    &disp,
+                    style,
+                );
+            }
         }
 
         if let Some(completion) = self.completion.as_mut() {
