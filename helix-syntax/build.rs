@@ -97,7 +97,7 @@ fn build_library(src_path: &Path, language: &str) -> Result<()> {
             .arg(header_path)
             .arg("-o")
             .arg(&library_path)
-            .arg("-O2");
+            .arg("-O0");
         if let Some(scanner_path) = scanner_path.as_ref() {
             if scanner_path.extension() == Some("c".as_ref()) {
                 command.arg("-xc").arg("-std=c99").arg(scanner_path);
